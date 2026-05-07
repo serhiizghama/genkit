@@ -24,6 +24,7 @@ the engine's ``enqueue_parts`` mechanism so the model can self-correct.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import mimetypes
 import os
@@ -415,7 +416,7 @@ class Filesystem(BaseMiddleware):
             Returns entries with ``path`` (relative to the queried directory),
             ``is_directory``, and ``size_bytes``.
             """
-            return self._list_files(input.dir_path, input.recursive)
+            return await asyncio.to_thread(self._list_files, input.dir_path, input.recursive)
 
         async def read_file(input: _ReadFileInput) -> str:
             """Read a file and queue its content as a user message.
@@ -424,8 +425,9 @@ class Filesystem(BaseMiddleware):
             response stays small. Use ``offset`` (1-indexed first line) and
             ``limit`` (max lines) to read slices of large files.
             """
-            return self._read_file_impl(
-                input.file_path, input.offset, input.limit, enqueue_parts, _call_cache, _call_lock
+            return await asyncio.to_thread(
+                self._read_file_impl,
+                input.file_path, input.offset, input.limit, enqueue_parts, _call_cache, _call_lock,
             )
 
         t_list = define_tool(scratch, list_files, name=self._tool_name('list_files'))
@@ -439,7 +441,9 @@ class Filesystem(BaseMiddleware):
                 Creates parent directories if needed. Fails if the file was externally
                 modified since the last ``read_file`` call.
                 """
-                return self._write_file_impl(input.file_path, input.content, _call_cache, _call_lock)
+                return await asyncio.to_thread(
+                    self._write_file_impl, input.file_path, input.content, _call_cache, _call_lock
+                )
 
             async def edit_file(input: _EditFileInput) -> str:
                 """Apply string-replacement edits to a file (requires prior read).
@@ -447,7 +451,8 @@ class Filesystem(BaseMiddleware):
                 Each edit must have ``old_string`` and ``new_string``. Set
                 ``replace_all: true`` to replace every occurrence instead of just the first.
                 """
-                return self._edit_file_impl(
+                return await asyncio.to_thread(
+                    self._edit_file_impl,
                     input.file_path,
                     [e.model_dump() for e in input.edits],
                     _call_cache,

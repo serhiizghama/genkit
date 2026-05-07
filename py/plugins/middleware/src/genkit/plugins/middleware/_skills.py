@@ -23,6 +23,7 @@ into the conversation context on demand.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any, ClassVar
@@ -184,14 +185,14 @@ class Skills(BaseMiddleware):
             Returns:
                 The full SKILL.md content for that skill.
             """
-            skills = self._scan_skills()
+            skills = await asyncio.to_thread(self._scan_skills)
             info = skills.get(skill_name)
             if info is None:
                 available = ', '.join(sorted(skills.keys()))
                 return f'Unknown skill "{skill_name}". Available skills: {available}'
             try:
                 skill_path = Path(info['path'])
-                return skill_path.read_text(encoding='utf-8')  # noqa: ASYNC240
+                return await asyncio.to_thread(skill_path.read_text, encoding='utf-8')
             except Exception as exc:
                 return f'Failed to read skill "{skill_name}": {exc}'
 
@@ -204,7 +205,7 @@ class Skills(BaseMiddleware):
         next_fn: Callable[[GenerateHookParams], Awaitable[ModelResponse]],
     ) -> ModelResponse:
         """Inject the skills system prompt before each generate iteration."""
-        skills = self._scan_skills()
+        skills = await asyncio.to_thread(self._scan_skills)
         if skills:
             prompt_text = self._build_skills_prompt(skills)
             if prompt_text:

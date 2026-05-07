@@ -129,19 +129,6 @@ class BaseMiddleware(BaseModel):
 
     # Injected at resolve time by ``resolve_middleware_from_use`` so hooks can
     # do model lookup, action resolution, etc. as ``self._registry``.
-    #
-    # This is the **per-call child registry**, not the root.  Lookups still see
-    # everything registered on the root (children delegate to parents on miss),
-    # but anything middleware *registers* through this handle — extra tools,
-    # values, dynamic actions — is automatically scoped to the current
-    # ``generate()`` call and discarded when the call ends.  Middleware can
-    # also resolve dynamic tools contributed by other middleware in the same
-    # call, since they all share this scope.
-    #
-    # Registered middleware receive this via their factory; inline instances
-    # passed in ``use=`` are ``model_copy()``-cloned first so the caller's
-    # value is never mutated (safe to reuse one instance across concurrent
-    # ``generate()`` calls).
     _registry: RegistryLike | None = PrivateAttr(default=None)
 
     def tools(self, enqueue_parts: Callable[[list[Part]], None] | None = None) -> list[Action]:

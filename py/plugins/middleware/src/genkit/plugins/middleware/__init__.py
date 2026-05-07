@@ -32,7 +32,7 @@ Quick start — register all five at once:
 """
 
 from genkit import middleware_plugin
-from genkit.middleware import new_middleware
+from genkit.plugin_api import new_middleware
 from genkit.plugins.middleware._fallback import Fallback
 from genkit.plugins.middleware._filesystem import Filesystem
 from genkit.plugins.middleware._retry import Retry
@@ -73,5 +73,4 @@ __all__ = [
     'Skills',
     'ToolApproval',
     'middleware_bundle',
-    'new_middleware',
 ]

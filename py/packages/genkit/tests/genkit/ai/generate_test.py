@@ -42,8 +42,8 @@ from genkit.middleware import (
     MultipartToolResponse,
     ToolHookParams,
     middleware_plugin,
-    new_middleware,
 )
+from genkit.plugin_api import new_middleware
 
 
 def _to_dict(obj: object) -> object:
@@ -341,9 +341,8 @@ class PostMiddleware(BaseMiddleware):
 def test_generate_action_options_use_is_middleware_ref_only() -> None:
     """``GenerateActionOptions.use`` is the wire form; only ``MiddlewareRef`` entries allowed.
 
-    Inline ``BaseMiddleware`` instances flow through the ``Genkit.generate(use=...)`` veneer,
-    which resolves them locally and hands them to ``generate_action`` via ``resolved_middleware=``;
-    they must never appear in the JSON-serialized action options.
+    Inline ``BaseMiddleware`` instances are normalized by the veneer before
+    ``generate_action`` is called — they never appear in the serialized options.
     """
     expected: tuple[type[BaseException], ...] = (ValidationError, TypeError)
     with pytest.raises(expected):

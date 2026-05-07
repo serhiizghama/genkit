@@ -47,6 +47,7 @@ from genkit._ai._formats._types import FormatDef
 from genkit._ai._generate import (
     define_generate_action,
     generate_action,
+    normalize_middleware,
     registry_with_inline_tools,
 )
 from genkit._ai._model import (
@@ -903,15 +904,10 @@ class Genkit:
 
         ``tools`` is typed as ``Sequence`` rather than ``list`` because ``Sequence``
         is covariant: ``list[Tool]`` or ``list[str]`` are both assignable to
-        ``Sequence[str | Tool]``, but not to ``list[str | Tool]``.
-
-        A :class:`~genkit._ai._tools.Tool` that is not already registered on this instance's
-        registry (for example from :func:`~genkit._ai._tools.define_tool` on a different
-        :class:`~genkit._core._registry.Registry`) is registered only for this call on a
-        temporary child registry (see :func:`~genkit._ai._generate.registry_with_inline_tools`);
-        that registry is what :func:`~genkit._ai._generate.generate_action` uses—root is not
-        modified, so inline tools cannot leak into other concurrent calls.
-        """
+        ``Sequence[str | Tool]``, but not to ``list[str | Tool]``."""
+        registry = await registry_with_inline_tools(self.registry, tools)
+        call_registry = registry.new_child()
+        normalized_refs = normalize_middleware(call_registry, use) or None
         prompt_config = PromptConfig(
             model=model,
             prompt=prompt,
@@ -931,13 +927,11 @@ class Genkit:
             output_schema=output_schema,
             output_constrained=output_constrained,
             docs=docs,
+            use=normalized_refs,
         )
-        registry = await registry_with_inline_tools(self.registry, prompt_config.tools)
         gen_options = await to_generate_action_options(registry, prompt_config)
-        if use:
-            gen_options = gen_options.model_copy(update={'use': use})
         return await generate_action(
-            registry,
+            call_registry,
             gen_options,
             context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]
         )
@@ -1027,6 +1021,9 @@ class Genkit:
         channel: Channel[ModelResponseChunk, ModelResponse[Any]] = Channel(timeout=timeout)
 
         async def _run_generate() -> ModelResponse[Any]:
+            registry = await registry_with_inline_tools(self.registry, tools)
+            call_registry = registry.new_child()
+            normalized_refs = normalize_middleware(call_registry, use) or None
             prompt_config = PromptConfig(
                 model=model,
                 prompt=prompt,
@@ -1046,13 +1043,11 @@ class Genkit:
                 output_schema=output_schema,
                 output_constrained=output_constrained,
                 docs=docs,
+                use=normalized_refs,
             )
-            registry = await registry_with_inline_tools(self.registry, prompt_config.tools)
             gen_options = await to_generate_action_options(registry, prompt_config)
-            if use:
-                gen_options = gen_options.model_copy(update={'use': use})
             return await generate_action(
-                registry,
+                call_registry,
                 gen_options,
                 on_chunk=lambda c: channel.send(c),
                 context=context if context else ActionRunContext._current_context(),  # pyright: ignore[reportPrivateUsage]

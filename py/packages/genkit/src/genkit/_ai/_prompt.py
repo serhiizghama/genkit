@@ -135,9 +135,8 @@ class PromptGenerateOptions(TypedDict, total=False):
     return_tool_requests: bool | None
     max_turns: int | None
     on_chunk: ModelStreamingCallback | None
-    use: list[BaseMiddleware | MiddlewareRef] | None
+    use: Sequence[BaseMiddleware | MiddlewareRef] | None
     context: dict[str, Any] | None
-    step_name: str | None
     metadata: dict[str, Any] | None
 
 
@@ -214,7 +213,7 @@ class PromptConfig(BaseModel):
     metadata: dict[str, Any] | None = None
     tools: Sequence[str | Tool] | None = None
     tool_choice: ToolChoice | None = None
-    use: list[BaseMiddleware | MiddlewareRef] | None = None
+    use: Sequence[BaseMiddleware | MiddlewareRef] | None = None
     docs: list[Document] | None = None
     resume_respond: ToolResponsePart | list[ToolResponsePart] | None = None
     resume_restart: ToolRequestPart | list[ToolRequestPart] | None = None
@@ -246,7 +245,7 @@ class ExecutablePrompt(Generic[InputT, OutputT]):
         metadata: dict[str, Any] | None = None,
         tools: Sequence[str | Tool] | None = None,
         tool_choice: ToolChoice | None = None,
-        use: list[BaseMiddleware | MiddlewareRef] | None = None,
+        use: Sequence[BaseMiddleware | MiddlewareRef] | None = None,
         docs: list[Document] | None = None,
         resources: list[str] | None = None,
         name: str | None = None,
@@ -551,15 +550,7 @@ async def to_generate_action_options(
     registry: Registry,
     options: PromptConfig,
 ) -> GenerateActionOptions:
-    """Render ``options`` into :class:`GenerateActionOptions`.
-
-    Pass :class:`PromptConfig` from :func:`Genkit.generate` or from
-    :func:`render_prompt_config_for_executable_call` after template expansion (final ``messages``,
-    merged ``docs``, optional ``resume``).
-
-    ``registry`` should come from :func:`~genkit._ai._generate.registry_with_inline_tools` when
-    ``tools`` may include unregistered :class:`~genkit._ai._tools.Tool` instances.
-    """
+    """Render ``PromptConfig`` into `GenerateActionOptions`."""
     model = options.model or cast(str | None, registry.lookup_value('defaultModel', 'defaultModel'))
     if model is None:
         raise GenkitError(status='INVALID_ARGUMENT', message='No model configured.')
@@ -613,6 +604,7 @@ async def to_generate_action_options(
         max_turns=options.max_turns,
         docs=merged_docs,  # type: ignore[arg-type]
         resume=resume,
+        use=options.use,  # type: ignore[arg-type]
     )
 
 

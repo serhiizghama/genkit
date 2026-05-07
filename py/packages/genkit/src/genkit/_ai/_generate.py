@@ -21,7 +21,9 @@ import contextlib
 import copy
 import re
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any, Never, cast
+from typing import Any, cast
+
+from typing_extensions import Never
 
 from pydantic import BaseModel
 
@@ -53,6 +55,7 @@ from genkit._core._model import (
     MultipartToolResponse,
     ToolHookParams,
 )
+from genkit._core._protocols import RegistryLike
 from genkit._core._registry import Registry
 from genkit._core._tracing import run_in_new_span
 from genkit._core._typing import (
@@ -113,9 +116,14 @@ def normalize_middleware(
             inst = entry.model_copy()
             inst._registry = registry
             # Wrap in a MiddlewareDesc so resolve_middleware_from_use can find it.
+            _inst_ref = inst  # capture for the closure; mypy needs a non-lambda factory
+            def _make_factory(_i: BaseMiddleware = _inst_ref) -> Callable[[dict[str, Any] | None, RegistryLike | None], BaseMiddleware]:
+                def _factory(_cfg: dict[str, Any] | None, _reg: RegistryLike | None) -> BaseMiddleware:
+                    return _i
+                return _factory
             desc = MiddlewareDesc(
                 name=reg_name,
-                factory=lambda _cfg, _reg, _inst=inst: _inst,
+                factory=_make_factory(),
             )
             registry.register_value('middleware', reg_name, desc)
             refs.append(MiddlewareRef(name=reg_name))
@@ -402,17 +410,7 @@ async def generate_action(
     """Execute a generation request with tool calling and middleware support, wrapped in a util ``generate`` span.
 
     The registered ``/util/generate`` action calls :func:`_generate_action` directly,
-    so reflection runs do not stack another util span on the action span.
-
-    ``raw_request.use`` may contain a mix of inline ``BaseMiddleware`` instances and
-    ``MiddlewareRef`` entries.  :func:`normalize_middleware` registers every inline
-    instance into the per-call child registry under its class name (or an
-    auto-generated name) and converts the full list to ``MiddlewareRef``s so that
-    :func:`resolve_middleware_from_use` can handle everything uniformly via the
-    registry.  After normalization ``raw_request.use`` contains only refs — a
-    consistent, serializable representation that the Dev UI and JSON action dispatch
-    can also rely on.
-    """
+    so reflection runs do not stack another util span on the action span."""
     span_name = 'generate'
     with run_in_new_span(
         SpanMetadata(name=span_name),
@@ -422,27 +420,11 @@ async def generate_action(
         with contextlib.suppress(Exception):
             span.set_attribute('genkit:input', raw_request.model_dump_json(by_alias=True, exclude_none=True))
 
-        # Build a per-call child registry up front and route everything for this
-        # call through it: middleware resolution, middleware-contributed tools,
-        # and the recursive engine itself.  Two consequences:
-        #   1. Anything middleware registers via ``self._registry`` (tools,
-        #      values, etc.) is auto-cleaned when the call ends — it cannot
-        #      leak into the parent or other concurrent ``generate()`` calls.
-        #   2. Middleware can resolve dynamic tools contributed by other
-        #      middleware in the same call, since they all share this scope.
-        call_registry = registry.new_child()
-
-        # Normalize: register inline instances into call_registry, convert all
-        # entries to MiddlewareRefs, then resolve uniformly from the registry.
+        call_registry = registry if registry.is_child else registry.new_child()
         normalized_refs = normalize_middleware(call_registry, raw_request.use)
         if normalized_refs:
             raw_request = raw_request.model_copy(update={'use': normalized_refs})
         middleware = resolve_middleware_from_use(call_registry, normalized_refs)
-        # Per-call message queue shared across all recursive _generate_action
-        # turns.  Middleware (and tool closures) enqueue extra user-role parts
-        # here via ``enqueue_parts``; the engine drains and injects them as a
-        # USER message at the start of the next wrap_generate iteration so the
-        # model sees them on its very next turn.
         _queue: list[Message] = []
 
         def _enqueue_parts(parts: list[Part]) -> None:
@@ -451,14 +433,7 @@ async def generate_action(
             else:
                 _queue.append(Message(role=Role.USER, content=list(parts)))
 
-        # Register tools contributed by middleware (via ``BaseMiddleware.tools()``)
-        # on the call registry so they're resolvable for this generate() only.
-        # Their names are also appended to ``raw_request.tools`` so
-        # ``resolve_parameters`` ships their definitions to the model and the
-        # tool-loop can look them up in the tool_dict it builds from that list.
         if middleware:
-            # Each middleware may return zero or more dynamic Actions from tools();
-            # flatten in use= order so registration matches how hooks are chained.
             mw_tools: list[Action[Any, Any, Never]] = []
             for mw in middleware:
                 contributed = mw.tools(_enqueue_parts)

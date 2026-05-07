@@ -29,7 +29,8 @@ from genkit._core._action import Action, ActionRunContext
 from genkit._core._model import ModelRequest
 from genkit._core._registry import ActionKind
 from genkit._core._typing import ActionMetadata, FinishReason
-from genkit.middleware import BaseMiddleware, MiddlewareDesc, new_middleware
+from genkit.middleware import BaseMiddleware, MiddlewareDesc
+from genkit.plugin_api import new_middleware
 
 
 class AsyncResolveOnlyPlugin(Plugin):

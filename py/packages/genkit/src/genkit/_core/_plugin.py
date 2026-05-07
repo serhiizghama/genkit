@@ -99,7 +99,7 @@ def _middleware_registry_name(namespace: str | None, desc_name: str) -> str:
     """Registry key for a descriptor under an optional namespace prefix."""
     if not namespace:
         return desc_name
-    return f'{namespace}_{desc_name}'
+    return f'{namespace}/{desc_name}'
 
 
 def middleware_plugin(

@@ -52,7 +52,8 @@ class Retry(BaseMiddleware):
     Non-retryable GenkitError statuses (INVALID_ARGUMENT, etc.) fail immediately.
 
     Jitter grows with attempt number: ``1s * 2^attempt * random()`` is added on top
-    of the exponentially-growing base delay, preventing thundering-herd retries.
+    of the base delay, with the total capped at ``max_delay_ms``. Prevents thundering-herd
+    retries while guaranteeing sleep never exceeds the configured maximum.
     """
 
     name: ClassVar[str] = 'retry'
@@ -87,10 +88,12 @@ class Retry(BaseMiddleware):
                 if isinstance(e, GenkitError) and e.status not in self.statuses:
                     raise  # non-retryable status
 
-                # Jitter: 1s * 2^attempt * random() on top of the capped base delay.
-                delay_ms = min(current_delay_ms, self.max_delay_ms)
+                # Additive jitter: 1 s × 2^attempt × random() on top of the
+                # base delay, then capped so the total never exceeds max_delay_ms.
+                delay_ms = current_delay_ms
                 if self.jitter:
                     delay_ms += 1000.0 * math.pow(2, attempt) * random.random()
+                delay_ms = min(delay_ms, self.max_delay_ms)
 
                 await asyncio.sleep(delay_ms / 1000.0)
                 current_delay_ms = min(current_delay_ms * self.backoff_factor, self.max_delay_ms)
