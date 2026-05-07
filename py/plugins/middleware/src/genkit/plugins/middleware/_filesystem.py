@@ -97,8 +97,8 @@ class _EditFileInput(PydanticBaseModel):
 
 
 # File-size limits.
-_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024   # 10 MB — absolute ceiling for reading
-_MAX_READ_SLICE_BYTES = 256 * 1024         # 256 KB — max bytes returned per slice
+_MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB — absolute ceiling for reading
+_MAX_READ_SLICE_BYTES = 256 * 1024  # 256 KB — max bytes returned per slice
 _MAX_CACHE_ENTRIES = 200
 
 # Stub returned when an unchanged file is re-requested at the same byte range.
@@ -116,7 +116,7 @@ class _FileState:
     mtime: float
     size: int
     offset: int  # 0 when the read covered the whole file
-    limit: int   # 0 when the read covered the whole file
+    limit: int  # 0 when the read covered the whole file
 
 
 class Filesystem(BaseMiddleware):
@@ -305,9 +305,7 @@ class Filesystem(BaseMiddleware):
         sliced = ''.join(lines[start:end])
 
         if len(sliced.encode()) > _MAX_READ_SLICE_BYTES:
-            raise ValueError(
-                f'Slice too large ({len(sliced):,} chars). Use offset/limit to read smaller sections.'
-            )
+            raise ValueError(f'Slice too large ({len(sliced):,} chars). Use offset/limit to read smaller sections.')
 
         if offset > 0 or limit > 0:
             wrapped = f'<read_file path="{file_path}" lines="{start + 1}-{end}">\n{sliced}\n</read_file>'
@@ -427,7 +425,12 @@ class Filesystem(BaseMiddleware):
             """
             return await asyncio.to_thread(
                 self._read_file_impl,
-                input.file_path, input.offset, input.limit, enqueue_parts, _call_cache, _call_lock,
+                input.file_path,
+                input.offset,
+                input.limit,
+                enqueue_parts,
+                _call_cache,
+                _call_lock,
             )
 
         t_list = define_tool(scratch, list_files, name=self._tool_name('list_files'))
@@ -435,6 +438,7 @@ class Filesystem(BaseMiddleware):
         tools_out = [t_list.action(), t_read.action()]
 
         if self.allow_write_access:
+
             async def write_file(input: _WriteFileInput) -> str:
                 """Write content to a file (requires prior read for existing files).
 

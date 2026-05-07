@@ -23,9 +23,8 @@ import re
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, cast
 
-from typing_extensions import Never
-
 from pydantic import BaseModel
+from typing_extensions import Never
 
 from genkit._ai._formats._types import FormatDef, Formatter
 from genkit._ai._messages import inject_instructions
@@ -86,7 +85,7 @@ def normalize_middleware(
     Inline ``BaseMiddleware`` instances are registered into the (child) registry
     under their class name — or an auto-generated ``__inline_{i}__`` name when
     the class has no registered name — so that everything in ``use=`` can be
-    resolved uniformly via the registry. 
+    resolved uniformly via the registry.
 
     The returned list of refs has the same ordering as the input and can be
     stored on ``GenerateActionOptions.use`` for consistent tracing / Dev UI
@@ -117,10 +116,15 @@ def normalize_middleware(
             inst._registry = registry
             # Wrap in a MiddlewareDesc so resolve_middleware_from_use can find it.
             _inst_ref = inst  # capture for the closure; mypy needs a non-lambda factory
-            def _make_factory(_i: BaseMiddleware = _inst_ref) -> Callable[[dict[str, Any] | None, RegistryLike | None], BaseMiddleware]:
+
+            def _make_factory(
+                _i: BaseMiddleware = _inst_ref,
+            ) -> Callable[[dict[str, Any] | None, RegistryLike | None], BaseMiddleware]:
                 def _factory(_cfg: dict[str, Any] | None, _reg: RegistryLike | None) -> BaseMiddleware:
                     return _i
+
                 return _factory
+
             desc = MiddlewareDesc(
                 name=reg_name,
                 factory=_make_factory(),
@@ -261,6 +265,7 @@ def tools_to_action_names(
 
 async def registry_with_inline_tools(registry: Registry, tools: Sequence[str | Tool] | None) -> Registry:
     """Creates a child registry and ensures that all tools are registered.
+
     Supports dynamically defined tools that are only passed in at call time
     and never actually registered.
     """
@@ -410,7 +415,8 @@ async def generate_action(
     """Execute a generation request with tool calling and middleware support, wrapped in a util ``generate`` span.
 
     The registered ``/util/generate`` action calls :func:`_generate_action` directly,
-    so reflection runs do not stack another util span on the action span."""
+    so reflection runs do not stack another util span on the action span.
+    """
     span_name = 'generate'
     with run_in_new_span(
         SpanMetadata(name=span_name),
@@ -445,12 +451,17 @@ async def generate_action(
                     call_registry.register_action_from_instance(t)
                     mw_tool_names.append(t.name)
                 existing = list(raw_request.tools) if raw_request.tools else []
-                raw_request = raw_request.model_copy(
-                    update={'tools': existing + mw_tool_names}
-                )
+                raw_request = raw_request.model_copy(update={'tools': existing + mw_tool_names})
         result = await _generate_action(
-            call_registry, raw_request, on_chunk, message_index, current_turn, middleware, context,
-            _enqueue_parts=_enqueue_parts, _queue=_queue,
+            call_registry,
+            raw_request,
+            on_chunk,
+            message_index,
+            current_turn,
+            middleware,
+            context,
+            _enqueue_parts=_enqueue_parts,
+            _queue=_queue,
         )
         with contextlib.suppress(Exception):
             span.set_attribute('genkit:output', result.model_dump_json(by_alias=True, exclude_none=True))
@@ -655,9 +666,7 @@ async def _generate_action(
                     on_chunk(chunk)
                     message_index += 1
                     chunk_role = msg_role
-            request = request.model_copy(
-                update={'messages': list(request.messages) + queued}
-            )
+            request = request.model_copy(update={'messages': list(request.messages) + queued})
 
         model_response = await dispatch_model(
             request,
@@ -731,8 +740,11 @@ async def _generate_action(
             tool_msg,
             transfer_preamble,
         ) = await resolve_tool_requests(
-            registry, raw_request, generated_msg,
-            middleware=normalized_mw, enqueue_parts=_enqueue_parts,
+            registry,
+            raw_request,
+            generated_msg,
+            middleware=normalized_mw,
+            enqueue_parts=_enqueue_parts,
         )
 
         # if an interrupt message is returned, stop the tool loop and return a
@@ -1412,9 +1424,7 @@ async def _run_restart_through_middleware(
     if not mw_list:
         return await run_tool_after_restart(tool, restart_trp)
 
-    params = ToolHookParams(
-        tool_request_part=restart_trp, tool=tool, enqueue_parts=enqueue_parts
-    )
+    params = ToolHookParams(tool_request_part=restart_trp, tool=tool, enqueue_parts=enqueue_parts)
 
     async def next_fn(
         p: ToolHookParams,

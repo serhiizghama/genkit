@@ -161,6 +161,7 @@ async def test_simulates_doc_grounding(
 # Unit tests for the private _augment_with_context helper                     #
 # --------------------------------------------------------------------------- #
 
+
 def test_augment_with_context_ignores_no_docs() -> None:
     """No docs -> request returned unchanged (same object identity)."""
     req = ModelRequest(
@@ -307,6 +308,7 @@ def test_augment_with_context_with_purpose_part() -> None:
 # --------------------------------------------------------------------------- #
 # Middleware class definitions shared by tests below                           #
 # --------------------------------------------------------------------------- #
+
 
 class PreMiddleware(BaseMiddleware):
     name: ClassVar[str] = 'pre_mw'
@@ -871,7 +873,8 @@ async def test_middleware_wrap_tool_interrupt_handled_as_interrupt_not_crash() -
     assert response.finish_reason == FinishReason.INTERRUPTED
     assert response.message is not None
     interrupt_parts = [
-        p for p in response.message.content
+        p
+        for p in response.message.content
         if isinstance(p.root, ToolRequestPart) and p.root.metadata and 'interrupt' in p.root.metadata
     ]
     assert len(interrupt_parts) == 1
@@ -913,11 +916,7 @@ async def test_middleware_contributed_tools_available_to_model() -> None:
             message=Message(
                 role=Role.MODEL,
                 content=[
-                    Part(
-                        root=ToolRequestPart(
-                            tool_request=ToolRequest(name='middleware_tool', input={}, ref='r1')
-                        )
-                    )
+                    Part(root=ToolRequestPart(tool_request=ToolRequest(name='middleware_tool', input={}, ref='r1')))
                 ],
             ),
         )
@@ -1024,9 +1023,7 @@ async def test_middleware_self_registry_is_per_call_scope() -> None:
         ),
     )
     assert response.text == 'ok'
-    assert seen_by_b == ['shared_tool'], (
-        f'looker middleware should have resolved shared_tool, saw: {seen_by_b}'
-    )
+    assert seen_by_b == ['shared_tool'], f'looker middleware should have resolved shared_tool, saw: {seen_by_b}'
     # Neither tool may leak into the root registry after the call ends.
     assert await ai.registry.resolve_action(ActionKind.TOOL, 'shared_tool') is None
     assert await ai.registry.resolve_action(ActionKind.TOOL, 'leaky_tool') is None
@@ -1202,9 +1199,7 @@ async def test_restart_path_routes_through_wrap_tool_middleware() -> None:
         ),
     )
     assert response.text == 'final'
-    assert invocations == ['approveMe'], (
-        f'expected wrap_tool to fire once on restart, saw: {invocations}'
-    )
+    assert invocations == ['approveMe'], f'expected wrap_tool to fire once on restart, saw: {invocations}'
 
 
 @pytest.mark.asyncio

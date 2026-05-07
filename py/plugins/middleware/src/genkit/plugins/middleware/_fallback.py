@@ -94,9 +94,7 @@ class Fallback(BaseMiddleware):
         assert last_error is not None  # noqa: S101
         # Pass the streaming callback through so fallback models can stream
         # to the same caller as the primary model would have.
-        on_chunk = (
-            cast(Callable[[object], None], params.on_chunk) if params.on_chunk else None
-        )
+        on_chunk = cast(Callable[[object], None], params.on_chunk) if params.on_chunk else None
         for model_name in self.models:
             fallback_action = await self._registry.resolve_action(ActionKind.MODEL, model_name)
             if fallback_action is None:

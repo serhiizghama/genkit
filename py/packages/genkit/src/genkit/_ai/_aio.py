@@ -904,7 +904,8 @@ class Genkit:
 
         ``tools`` is typed as ``Sequence`` rather than ``list`` because ``Sequence``
         is covariant: ``list[Tool]`` or ``list[str]`` are both assignable to
-        ``Sequence[str | Tool]``, but not to ``list[str | Tool]``."""
+        ``Sequence[str | Tool]``, but not to ``list[str | Tool]``.
+        """
         registry = await registry_with_inline_tools(self.registry, tools)
         call_registry = registry.new_child()
         normalized_refs = normalize_middleware(call_registry, use) or None

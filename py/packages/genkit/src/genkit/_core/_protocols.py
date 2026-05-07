@@ -33,7 +33,6 @@ Currently defined:
 
 from __future__ import annotations
 
-from collections.abc import Awaitable
 from typing import Any, Protocol, runtime_checkable
 
 from genkit._core._action import Action, ActionKind
@@ -55,7 +54,7 @@ class RegistryLike(Protocol):
         """Return a scoped child registry that delegates misses to this one."""
         ...
 
-    def lookup_value(self, kind: str, name: str) -> Any:
+    def lookup_value(self, kind: str, name: str) -> Any:  # noqa: ANN401
         """Look up a registered value by kind and name."""
         ...
 

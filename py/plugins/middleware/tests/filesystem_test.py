@@ -30,6 +30,7 @@ def _make_call_state():
     """Return a fresh (cache, lock) pair matching what tools() creates per call."""
     return OrderedDict(), threading.Lock()
 
+
 # ---------------------------------------------------------------------------
 # Construction / validation
 # ---------------------------------------------------------------------------

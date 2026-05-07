@@ -42,9 +42,9 @@ import re
 from collections.abc import Awaitable, Callable
 from typing import Any, ClassVar
 
-from genkit._core._action import Action
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
+from genkit._core._action import Action
 from genkit._core._model import (
     GenerateHookParams,
     ModelHookParams,

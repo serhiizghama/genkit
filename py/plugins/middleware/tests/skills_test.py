@@ -64,12 +64,12 @@ async def test_skills_scan_with_skill() -> None:
         skill_dir = Path(tmpdir) / 'test-skill'
         skill_dir.mkdir()
         skill_file = skill_dir / 'SKILL.md'
-        skill_file.write_text('''---
+        skill_file.write_text("""---
 name: test-skill
 description: A test skill
 ---
 You are a test assistant.
-''')
+""")
 
         skills = Skills(skill_paths=[tmpdir])
 
@@ -93,12 +93,12 @@ async def test_skills_parse_frontmatter() -> None:
         skill_dir = Path(tmpdir) / 'python-expert'
         skill_dir.mkdir()
         skill_file = skill_dir / 'SKILL.md'
-        skill_file.write_text('''---
+        skill_file.write_text("""---
 name: python-expert
 description: Expert Python programming assistance
 ---
 You are an expert Python programmer.
-''')
+""")
 
         skills = Skills(skill_paths=[tmpdir])
         info = skills._scan_skills()
@@ -129,12 +129,12 @@ def test_skills_placeholder_description_not_shown_in_prompt() -> None:
         skill_dir = Path(tmpdir) / 'bare-skill'
         skill_dir.mkdir()
         skill_file = skill_dir / 'SKILL.md'
-        skill_file.write_text('''---
+        skill_file.write_text("""---
 name: bare-skill
 description: No description provided.
 ---
 Skill body.
-''')
+""")
 
         skills = Skills(skill_paths=[tmpdir])
         scanned = skills._scan_skills()
