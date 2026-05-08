@@ -246,7 +246,7 @@ const synthesis = ai.generateStream({ model: 'main', ... });
 sendChunk({ status: 'Researching...' });
 
 // 3. Direct session & message management
-sess.session.addMessages([response.message]);`}</pre>
+sess.addMessages([response.message]);`}</pre>
       </aside>
     </div>
   );
