@@ -33,19 +33,24 @@ import { z } from 'genkit';
 import { ai } from './genkit.js';
 
 // ---------------------------------------------------------------------------
-// Typed custom state
+// Typed custom state — defined with Zod so the JSON Schema is available in
+// action metadata for the Dev UI and runtime validation.
 // ---------------------------------------------------------------------------
 
-interface TaskItem {
-  id: number;
-  title: string;
-  done: boolean;
-}
+const TaskItemSchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  done: z.boolean(),
+});
 
-interface TaskState {
-  tasks: TaskItem[];
-  nextId: number;
-}
+type TaskItem = z.infer<typeof TaskItemSchema>;
+
+const TaskStateSchema = z.object({
+  tasks: z.array(TaskItemSchema),
+  nextId: z.number(),
+});
+
+type TaskState = z.infer<typeof TaskStateSchema>;
 
 // ---------------------------------------------------------------------------
 // Tools — the model calls these to mutate custom state
@@ -152,8 +157,9 @@ const removeTask = ai.defineTool(
 // Custom state works seamlessly — tools call ai.currentSession().updateCustom()
 // ---------------------------------------------------------------------------
 
-export const taskAgent = ai.defineAgent<TaskState>({
+export const taskAgent = ai.defineAgent({
   name: 'taskPrompt',
+  stateSchema: TaskStateSchema,
   model: 'googleai/gemini-flash-latest',
   system: `You are a concise task management assistant. Help the user manage their task list.
 

@@ -63,7 +63,7 @@ export const customAgent = ai.defineCustomAgent(
       // Build conversation history context (available for ALL steps).
       // sess.run() adds the current input.messages to the session before
       // calling this handler, so getMessages() includes everything.
-      const priorMessages = sess.session.getMessages();
+      const priorMessages = sess.getMessages();
       const historyContext =
         priorMessages.length > 1
           ? '\nConversation history:\n' +
@@ -153,7 +153,7 @@ Write a clear, cohesive response that integrates all the research findings. Don'
 
       // Add the final synthesized response to the session messages
       if (lastMessage) {
-        sess.session.addMessages([lastMessage]);
+        sess.addMessages([lastMessage]);
       }
 
       sendChunk({ status: 'Done' });
