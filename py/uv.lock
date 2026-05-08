@@ -25,7 +25,6 @@ members = [
     "genkit-plugin-flask",
     "genkit-plugin-google-cloud",
     "genkit-plugin-google-genai",
-    "genkit-plugin-middleware",
     "genkit-plugin-ollama",
     "genkit-plugin-vertex-ai",
     "genkit-workspace",
