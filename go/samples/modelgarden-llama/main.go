@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/vertexai/modelgarden"
@@ -27,27 +26,26 @@ import (
 func main() {
 	ctx := context.Background()
 
-	g := genkit.Init(ctx, genkit.WithPlugins(&modelgarden.Anthropic{}))
+	// Llama MaaS is served from us-central1. Override Location if your project
+	// has Llama enabled in a different region.
+	g := genkit.Init(ctx, genkit.WithPlugins(
+		&modelgarden.Llama{Location: "us-central1"},
+	))
 
-	// Define a simple flow that generates jokes about a given topic
-	genkit.DefineFlow(g, "jokesFlow", func(ctx context.Context, input string) (string, error) {
-		m := modelgarden.AnthropicModel(g, "claude-3-5-sonnet-v2")
+	// Define a flow that uses Llama 3.3 70B to describe a topic.
+	genkit.DefineFlow(g, "llamaFlow", func(ctx context.Context, input string) (string, error) {
+		m := modelgarden.LlamaModel(g, "meta/llama-3.3-70b-instruct-maas")
 		if m == nil {
-			return "", errors.New("jokesFlow: failed to find model")
+			return "", errors.New("llamaFlow: failed to find model")
 		}
 
 		resp, err := genkit.Generate(ctx, g,
 			ai.WithModel(m),
-			ai.WithConfig(&anthropic.MessageNewParams{
-				Temperature: anthropic.Float(1.0),
-			}),
-			ai.WithPrompt(`Tell a short joke about %s`, input))
+			ai.WithPrompt("In one short sentence, describe %s", input))
 		if err != nil {
 			return "", err
 		}
-
-		text := resp.Text()
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	<-ctx.Done()
