@@ -27,7 +27,7 @@ import {
   defineAgent,
   defineCustomAgent,
   definePromptAgent,
-} from '../src/session-flow.js';
+} from '../src/agent.js';
 import {
   InMemorySessionStore,
   Session,

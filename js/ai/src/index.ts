@@ -147,7 +147,7 @@ export {
   type RetrieverParams,
   type RetrieverReference,
 } from './retriever.js';
-export * from './session-flow.js';
+export * from './agent.js';
 export {
   ToolInterruptError,
   asTool,
