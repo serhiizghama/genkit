@@ -161,6 +161,26 @@ func TestMistralTransport_StripsPublisherPrefixFromURL(t *testing.T) {
 	}
 }
 
+func TestPeekModelAndStream_EmptyBody(t *testing.T) {
+	model, stream, err := peekModelAndStream(nil)
+	if err != nil {
+		t.Fatalf("err = %v, want nil for empty body", err)
+	}
+	if model != "" || stream {
+		t.Errorf("model=%q stream=%v, want empty/false for empty body", model, stream)
+	}
+}
+
+func TestPeekModelAndStream_MalformedJSON(t *testing.T) {
+	_, _, err := peekModelAndStream([]byte("{not-json"))
+	if err == nil {
+		t.Fatal("expected error for malformed JSON")
+	}
+	if !strings.Contains(err.Error(), "decode body") {
+		t.Errorf("err = %v, want one mentioning decode body", err)
+	}
+}
+
 func TestMistralTransport_PassThroughNonChat(t *testing.T) {
 	inner := &captureRoundTripper{}
 	rt := &mistralVertexTransport{
