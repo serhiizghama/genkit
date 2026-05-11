@@ -208,6 +208,37 @@ func TestMistralTransport_MissingModelErrors(t *testing.T) {
 	}
 }
 
+func TestMistralTransport_EscapesModelInURL(t *testing.T) {
+	inner := &captureRoundTripper{}
+	rt := &mistralVertexTransport{
+		inner:    inner,
+		project:  "test-proj",
+		location: "us-central1",
+	}
+
+	// A malformed id with characters that would otherwise inject path/query
+	// segments. PathEscape must encode them.
+	body := `{"model":"weird/id?evil=1#frag"}`
+	req := newChatRequest(t, body)
+
+	resp, err := rt.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("RoundTrip: %v", err)
+	}
+	resp.Body.Close()
+
+	if got := inner.last.URL.RawQuery; got != "" {
+		t.Errorf("URL has unexpected query: %q", got)
+	}
+	if got := inner.last.URL.Fragment; got != "" {
+		t.Errorf("URL has unexpected fragment: %q", got)
+	}
+	// Path must contain the escaped form of the model, not the raw injection.
+	if !strings.Contains(inner.last.URL.EscapedPath(), "weird%2Fid%3Fevil=1%23frag:rawPredict") {
+		t.Errorf("model id not escaped in path: %s", inner.last.URL.EscapedPath())
+	}
+}
+
 func TestMistralTransport_PreservesExtraBodyFields(t *testing.T) {
 	inner := &captureRoundTripper{}
 	rt := &mistralVertexTransport{

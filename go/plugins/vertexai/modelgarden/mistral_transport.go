@@ -77,9 +77,12 @@ func (t *mistralVertexTransport) RoundTrip(req *http.Request) (*http.Response, e
 		suffix = "streamRawPredict"
 	}
 
+	// PathEscape the model id so a hostile/malformed id (e.g. one containing
+	// "/", "?", or "#") cannot inject extra path segments, query strings, or
+	// fragments into the outbound URL.
 	newURL, err := url.Parse(fmt.Sprintf(
 		"https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/%s/models/%s:%s",
-		t.location, t.project, t.location, mistralPublisher, model, suffix,
+		t.location, t.project, t.location, mistralPublisher, url.PathEscape(model), suffix,
 	))
 	if err != nil {
 		return nil, fmt.Errorf("modelgarden mistral transport: build url: %w", err)
