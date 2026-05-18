@@ -477,6 +477,104 @@ describe('retry', () => {
     assert.strictEqual(result.text, 'success');
     assert.strictEqual(totalDelay, 20 + 30);
   });
+
+  it('should not retry on AbortError', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      const err = new Error('aborted by caller');
+      err.name = 'AbortError';
+      throw err;
+    };
+
+    let delayCalls = 0;
+    setRetryTimeout((callback, ms) => {
+      delayCalls++;
+      callback();
+      return 0 as any;
+    });
+
+    await assert.rejects(
+      generate(registry, {
+        model: 'programmableModel',
+        prompt: 'test',
+        use: [retry({ maxRetries: 3, noJitter: true })],
+      }),
+      /aborted by caller/
+    );
+
+    assert.strictEqual(requestCount, 1);
+    assert.strictEqual(delayCalls, 0);
+  });
+
+  it('should not retry once abortSignal is already aborted', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      throw new Error('generic error');
+    };
+
+    let delayCalls = 0;
+    setRetryTimeout((callback, ms) => {
+      delayCalls++;
+      callback();
+      return 0 as any;
+    });
+
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled'));
+
+    await assert.rejects(
+      generate(registry, {
+        model: 'programmableModel',
+        prompt: 'test',
+        abortSignal: controller.signal,
+        use: [retry({ maxRetries: 3, noJitter: true })],
+      })
+    );
+
+    assert.ok(requestCount <= 1);
+    assert.strictEqual(delayCalls, 0);
+  });
+
+  it('should abort the backoff sleep when signal fires mid-retry', async () => {
+    const pm = defineProgrammableModel(registry);
+    let requestCount = 0;
+    const controller = new AbortController();
+    pm.handleResponse = async (req, sc) => {
+      requestCount++;
+      throw new Error('generic error');
+    };
+
+    // Use the real setTimeout so the abort listener wired up inside the
+    // middleware can interrupt the sleep.
+    setRetryTimeout(setTimeout);
+
+    // Fire the abort shortly after the first failure starts the backoff.
+    setTimeout(() => controller.abort(new Error('cancelled')), 10);
+
+    await assert.rejects(
+      generate(registry, {
+        model: 'programmableModel',
+        prompt: 'test',
+        abortSignal: controller.signal,
+        use: [
+          retry({
+            maxRetries: 5,
+            initialDelayMs: 10_000,
+            noJitter: true,
+          }),
+        ],
+      }),
+      /cancelled/
+    );
+
+    // First call always runs; subsequent calls should be skipped because the
+    // sleep was interrupted by the abort.
+    assert.strictEqual(requestCount, 1);
+  });
 });
 
 describe('fallback', () => {
